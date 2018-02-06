@@ -16,8 +16,7 @@ sudo python3 setup.py install
 ```
 
 ## What does GProxy Provides
-gproxy is build on top of requests.Session and supports proxies as well.
-It gets all proxies from https://free-proxy-list.net/ and use them one by one, whenever there there is a latency in response, it automatically updates proxy. You can also force it to update proxy.
+gproxy is a robust http(s), free and fast proxy service build for the sole purpose of web crawling. It is build on top of requests.Session and hence provides all requests functionalities. gproxy gets all proxies from https://free-proxy-list.net and identifies the best proxy(ies) for your specific task. It automatically detects network latency and updates proxies to provide optimal speed.
 
 
 ## Demo
