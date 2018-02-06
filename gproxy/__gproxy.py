@@ -5,18 +5,32 @@ import bs4
 
 
 class Session(requests.Session):
+    '''
+    this Session is inherited from `requests.Session` and support proxies
+    '''
 
     def __init__(self, **kwargs):
+        '''
+        params **kwargs: Optional arguments that ``set_parameters`` takes.
+        for more information check documentation of ``set_parameters`` method
+        '''
         requests.Session.__init__(self)
         self.set_parameters(**kwargs)
         self.__update_proxy_from_source(True)
 
 
-    def set_parameters(self, speed_test_url = 'http://www.google.com', speed_test_timeout = 10, country_codes = None, max_num_proxy = 100):
+    def set_parameters(self, speed_test_url = 'http://www.google.com', speed_test_timeout = 5, country_codes = None, max_num_proxy = 5):
+        '''
+        all the parameters of this function is very importtant to filter 'good proxies'
+        speed_test_url: url where request should be made to check latency
+        speed_test_timeout: if for a particular proxy, response doesn't come in this time then proxy is bad, choose this parameter wisely because if its too big you may get bad proxies if its too small then you may miss good proxies.
+        country_codes: filter proxies for some specific countries, eg IN, US etc, it can be a string or list or strings
+        max_num_proxy: maxinum number of proxies to get
+        '''
         self.__speed_test_url = speed_test_url
         self.__speed_test_timeout = speed_test_timeout
         self.__max_num_proxy = max_num_proxy
-        if isinstance(country_codes, (str, unicode)):
+        if country_codes is not None and not isinstance(country_codes, list):
             country_codes = [country_codes]
         if country_codes:
             country_codes = [country_code.upper() for country_code in country_codes]
@@ -24,14 +38,21 @@ class Session(requests.Session):
 
 
     def get_parameters(self):
+        '''
+        get all paramaters like 'speed_test_url', 'speed_test_timeout', 'country_codes', 'country_codes', 'max_num_proxy'
+        You can update these paramaters by using 'set_parameters' method
+        '''
         return {"speed_test_url": self.__speed_test_url, "speed_test_timeout": self.__speed_test_timeout, "country_codes": self.__country_codes, "max_num_proxy": self.__max_num_proxy}
 
 
     def get_num_proxies(self):
-        return len(self.__all_proxies)
+        '''
+        get total number of proxies in the list
+        '''
+        return len(self.__all_proxies) - self.__proxy_being_used
 
 
-    def __time_taken(self, pip, timeout = 5):
+    def __time_taken(self, pip):
         try:
             t = time.time()
             res = requests.get(self.__speed_test_url, proxies = pip, timeout = self.__speed_test_timeout)
@@ -57,10 +78,10 @@ class Session(requests.Session):
         return proxies_list
 
 
-    def __filter_good_proxies(self, proxies, **kwargs):
+    def __filter_good_proxies(self, proxies):
         good_proxies = []
         for proxy in proxies:
-            time_taken1 = self.__time_taken(proxy, **kwargs)
+            time_taken1 = self.__time_taken(proxy)
             if time_taken1 < 100:
                 good_proxies.append((time_taken1, proxy))
                 if len(good_proxies) == self.__max_num_proxy:
@@ -83,15 +104,18 @@ class Session(requests.Session):
         if not len(self.__all_proxies):
             raise Exception("no proxies found for your search, try using different country codes or increasing timeout")
         self.last_refreshed = time.time()
-        self.proxy_being_used = 1
+        self.__proxy_being_used = 1
         self.proxies = self.__all_proxies[0]
 
 
     def update_proxy(self):
-        if (self.proxy_being_used < len(self.__all_proxies)) and (time.time() - self.last_refreshed < 600):
+        '''
+        if current proxy is slow, you can update proxy by calling this method.
+        '''
+        if (self.__proxy_being_used < len(self.__all_proxies)) and (time.time() - self.last_refreshed < 600):
             print("getting proxy from cache")
-            self.proxies = self.__all_proxies[self.proxy_being_used]
-            self.proxy_being_used += 1
+            self.proxies = self.__all_proxies[self.__proxy_being_used]
+            self.__proxy_being_used += 1
         else:
             self.__update_proxy_from_source()
         print("new proxy: %r"%self.proxies)
