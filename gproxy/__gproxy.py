@@ -29,8 +29,8 @@ class Session(requests.Session):
         table = soup.find('div', {'class': 'table-responsive'})
         trs = table.find_all('tr')
         proxies_list = []
-        for tr in xrange(1, len(trs)-1):
-            tds = trs[tr].find_all('td')
+        for tr in trs[1:-1]:
+            tds = tr.find_all('td')
             ip = tds[0].text.strip()
             port = tds[1].text.strip()
             if tds[6].text.strip()=='yes' and tds[4].text.strip() != "transparent":
@@ -54,8 +54,10 @@ class Session(requests.Session):
 
 
     def __update_proxy_from_source(self, from_init = False):
-        if not from_init:
-            print "refreshing proxy list"
+        if from_init:
+            print("getting proxies")
+        else:
+            print("refreshing proxy list")
         self.__all_proxies = self.__get_proxy()
         self.last_refreshed = time.time()
         self.proxy_being_used = 1
@@ -64,12 +66,12 @@ class Session(requests.Session):
 
     def update_proxy(self):
         if (self.proxy_being_used < len(self.__all_proxies)) and (time.time() - self.last_refreshed < 600):
-            print "returning proxy from cache"
+            print("getting proxy from cache")
             self.proxies = self.__all_proxies[self.proxy_being_used]
             self.proxy_being_used += 1
         else:
             self.__update_proxy_from_source()
-        print "new proxy: ", self.proxies
+        print("new proxy: %r"%self.proxies)
 
 
     def get(self, *args, **kwargs):
@@ -78,7 +80,7 @@ class Session(requests.Session):
             try:
                 return super(Session, self).get(*args, **kwargs)
             except (requests.exceptions.ProxyError,requests.exceptions.ConnectionError,requests.exceptions.ReadTimeout,requests.exceptions.ConnectTimeout) as e:
-                #print type(e), ":", e
+                #print("%r : %r"%(type(e), e))
                 self.update_proxy()
 
         return super(Session, self).get(*args, **kwargs)
@@ -91,7 +93,7 @@ class Session(requests.Session):
             try:
                 return super(Session, self).post(*args, **kwargs)
             except (requests.exceptions.ProxyError,requests.exceptions.ConnectionError,requests.exceptions.ReadTimeout,requests.exceptions.ConnectTimeout) as e:
-                #print type(e), ":", e
+                #print("%r : %r"%(type(e), e))
                 self.update_proxy()
 
         return super(Session, self).post(*args, **kwargs)
