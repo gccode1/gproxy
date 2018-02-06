@@ -2,26 +2,25 @@
 ## Session Based free proxy in Python
 
 ## Installation
+```
+git clone https://github.com/gccode1/gproxy
+cd gproxy
 sudo python setup.py install
+```
 
 ## What does GProxy Provides
-gproxy.Session() works exactly like requests.Session(), but it also supports proxies.
-
-
-All functions of requests.Session() will also be availabe in gporxy.Session() 
-
-It will get proxies by itself. Whenever you think that response is slow you can update proxy. For clarification, see the example given below  
+gproxy is build on top of requests.Session and supports proxies as well.
+It gets all proxies from https://free-proxy-list.net/ and use them one by one, whenever there there is a latency in response, it automatically update proxy. You can also force it to update proxy.
 
 
 ## Demo
+
+```
 import gproxy
 
 session = gproxy.Session()
 
 session.get("https://google.com")
 
-If response of the above request is slow, then you can request for a new proxy by calling
-
-session.update_proxy()
-
-
+session.update_proxy() # In case response of above request was slow
+```
