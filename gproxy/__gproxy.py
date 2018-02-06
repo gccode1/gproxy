@@ -1,23 +1,42 @@
 import requests
 import time
-from copy import deepcopy
 import random
 import bs4
 
 
 class Session(requests.Session):
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         requests.Session.__init__(self)
+        self.set_parameters(**kwargs)
         self.__update_proxy_from_source(True)
 
 
-    def __time_taken(self, pip1, timeout = 1):
-        pip = deepcopy(pip1)
-        pip.pop("http")
+    def set_parameters(self, speed_test_url = 'http://www.google.com', speed_test_timeout = 10, country_codes = None, max_num_proxy = 100):
+        self.__speed_test_url = speed_test_url
+        self.__speed_test_timeout = speed_test_timeout
+        self.__max_num_proxy = max_num_proxy
+        if isinstance(country_codes, (str, unicode)):
+            country_codes = [country_codes]
+        if country_codes:
+            country_codes = [country_code.upper() for country_code in country_codes]
+        self.__country_codes = country_codes
+
+
+    def get_parameters(self):
+        return {"speed_test_url": self.__speed_test_url, "speed_test_timeout": self.__speed_test_timeout, "country_codes": self.__country_codes, "max_num_proxy": self.__max_num_proxy}
+
+
+    def get_num_proxies(self):
+        return len(self.__all_proxies)
+
+
+    def __time_taken(self, pip, timeout = 5):
         try:
             t = time.time()
-            requests.get('http://www.google.com', proxies = pip, timeout = timeout)
+            res = requests.get(self.__speed_test_url, proxies = pip, timeout = self.__speed_test_timeout)
+            if res.status_code != 200:
+                return 100
             return time.time()-t
         except Exception as e:
             return 100
@@ -33,7 +52,7 @@ class Session(requests.Session):
             tds = tr.find_all('td')
             ip = tds[0].text.strip()
             port = tds[1].text.strip()
-            if tds[6].text.strip()=='yes' and tds[4].text.strip() != "transparent":
+            if tds[6].text.strip()=='yes' and tds[4].text.strip() != "transparent" and (self.__country_codes is None or tds[2].text.strip() in self.__country_codes):
                 proxies_list.append({"https": ip+ ':'+ port, "http": ip+ ':'+ port})
         return proxies_list
 
@@ -44,6 +63,8 @@ class Session(requests.Session):
             time_taken1 = self.__time_taken(proxy, **kwargs)
             if time_taken1 < 100:
                 good_proxies.append((time_taken1, proxy))
+                if len(good_proxies) == self.__max_num_proxy:
+                    return sorted(good_proxies)
         return sorted(good_proxies)
 
 
@@ -59,6 +80,8 @@ class Session(requests.Session):
         else:
             print("refreshing proxy list")
         self.__all_proxies = self.__get_proxy()
+        if not len(self.__all_proxies):
+            raise Exception("no proxies found for your search, try using different country codes or increasing timeout")
         self.last_refreshed = time.time()
         self.proxy_being_used = 1
         self.proxies = self.__all_proxies[0]
