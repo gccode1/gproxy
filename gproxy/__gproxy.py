@@ -9,7 +9,7 @@ class Session(requests.Session):
 
     def __init__(self):
         requests.Session.__init__(self)
-        self.__update_proxy_from_source()
+        self.__update_proxy_from_source(True)
 
 
     def __time_taken(self, pip1, timeout = 1):
@@ -33,7 +33,7 @@ class Session(requests.Session):
             tds = trs[tr].find_all('td')
             ip = tds[0].text.strip()
             port = tds[1].text.strip()
-            if tds[6].text.strip()=='yes' and tds[4].text.strip() == "anonymous":
+            if tds[6].text.strip()=='yes' and tds[4].text.strip() != "transparent":
                 proxies_list.append({"https": ip+ ':'+ port, "http": ip+ ':'+ port})
         return proxies_list
 
@@ -53,17 +53,19 @@ class Session(requests.Session):
         return [ip[1] for ip in ips]
 
 
-    def __update_proxy_from_source(self):
-        print "refreshing proxy list"
-        self.all_proxies = self.__get_proxy()
+    def __update_proxy_from_source(self, from_init = False):
+        if not from_init:
+            print "refreshing proxy list"
+        self.__all_proxies = self.__get_proxy()
         self.last_refreshed = time.time()
         self.proxy_being_used = 1
-        self.proxies = self.all_proxies[0]
+        self.proxies = self.__all_proxies[0]
+
 
     def update_proxy(self):
-        if (self.proxy_being_used < len(self.all_proxies)) and (time.time() - self.last_refreshed < 600):
+        if (self.proxy_being_used < len(self.__all_proxies)) and (time.time() - self.last_refreshed < 600):
             print "returning proxy from cache"
-            self.proxies = self.all_proxies[self.proxy_being_used]
+            self.proxies = self.__all_proxies[self.proxy_being_used]
             self.proxy_being_used += 1
         else:
             self.__update_proxy_from_source()
@@ -74,12 +76,12 @@ class Session(requests.Session):
 
         for i in range(3):
             try:
-                return super(PSession, self).get(*args, **kwargs)
+                return super(Session, self).get(*args, **kwargs)
             except (requests.exceptions.ProxyError,requests.exceptions.ConnectionError,requests.exceptions.ReadTimeout,requests.exceptions.ConnectTimeout) as e:
                 #print type(e), ":", e
                 self.update_proxy()
 
-        return super(PSession, self).get(*args, **kwargs)
+        return super(Session, self).get(*args, **kwargs)
 
 
 
@@ -87,9 +89,9 @@ class Session(requests.Session):
 
         for i in range(3):
             try:
-                return super(PSession, self).post(*args, **kwargs)
+                return super(Session, self).post(*args, **kwargs)
             except (requests.exceptions.ProxyError,requests.exceptions.ConnectionError,requests.exceptions.ReadTimeout,requests.exceptions.ConnectTimeout) as e:
                 #print type(e), ":", e
                 self.update_proxy()
 
-        return super(PSession, self).post(*args, **kwargs)
+        return super(Session, self).post(*args, **kwargs)
