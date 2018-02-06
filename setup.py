@@ -30,7 +30,7 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     keywords='gproxy proxy https http',
-    py_modules=['gproxy'],
+    #py_modules=['gproxy'],
     long_description=long_description,
     install_requires=['requests', "bs4"],
 )

@@ -78,7 +78,11 @@ class Session(requests.Session):
 
         for i in range(3):
             try:
-                return super(Session, self).get(*args, **kwargs)
+                res = super(Session, self).get(*args, **kwargs)
+                if res.status_code not in (407,503):
+                    return res
+                else:
+                    self.update_proxy()
             except (requests.exceptions.ProxyError,requests.exceptions.ConnectionError,requests.exceptions.ReadTimeout,requests.exceptions.ConnectTimeout) as e:
                 #print("%r : %r"%(type(e), e))
                 self.update_proxy()
@@ -86,12 +90,15 @@ class Session(requests.Session):
         return super(Session, self).get(*args, **kwargs)
 
 
-
     def post(self, *args, **kwargs):
 
         for i in range(3):
             try:
-                return super(Session, self).post(*args, **kwargs)
+                res = super(Session, self).post(*args, **kwargs)
+                if res.status_code not in (407,503):
+                    return res
+                else:
+                    self.update_proxy()
             except (requests.exceptions.ProxyError,requests.exceptions.ConnectionError,requests.exceptions.ReadTimeout,requests.exceptions.ConnectTimeout) as e:
                 #print("%r : %r"%(type(e), e))
                 self.update_proxy()
