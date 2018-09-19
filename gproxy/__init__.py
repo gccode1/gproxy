@@ -2,6 +2,8 @@ import requests
 import time
 import random
 import bs4
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
 class Session(requests.Session):
@@ -19,17 +21,20 @@ class Session(requests.Session):
         self.__update_proxy_from_source(True)
 
 
-    def set_parameters(self, speed_test_url = 'http://www.google.com', speed_test_timeout = 1, country_codes = None, max_num_proxy = 5):
+    def set_parameters(self, speed_test_url = 'http://www.google.com', speed_test_timeout = 1, country_codes = None, max_num_proxy = 5, only_https = False):
         '''
         all the parameters of this function is very importtant to filter 'good proxies'
-        speed_test_url: url where request should be made to check latency
-        speed_test_timeout: if for a particular proxy, response doesn't come in this time then proxy is bad, choose this parameter wisely because if its too big you may get bad proxies if its too small then you may miss good proxies.
-        country_codes: filter proxies for some specific countries, eg IN, US etc, it can be a string or list or strings
-        max_num_proxy: maxinum number of proxies to get
+
+        speed_test_url:       url where request should be made to check latency
+        speed_test_timeout:   if for a particular proxy, response doesn't come in this time then proxy is bad, choose this parameter wisely because if its too big you may get bad proxies if its too small then you may miss good proxies.
+        country_codes:        filter proxies for some specific countries, eg IN, US etc, it can be a string or list or strings
+        max_num_proxy:        maxinum number of proxies to get
+        only_https:           filter proxies with https support
         '''
         self.__speed_test_url = speed_test_url
         self.__speed_test_timeout = speed_test_timeout
         self.__max_num_proxy = max_num_proxy
+        self.__only_https = only_https
         if country_codes is not None and not isinstance(country_codes, list):
             country_codes = [country_codes]
         if country_codes:
@@ -55,7 +60,7 @@ class Session(requests.Session):
     def __time_taken(self, pip):
         try:
             t = time.time()
-            res = requests.get(self.__speed_test_url, proxies = pip, timeout = self.__speed_test_timeout)
+            res = requests.get(self.__speed_test_url, proxies = pip, timeout = self.__speed_test_timeout, verify = False)
             if res.status_code != 200:
                 return 100
             return time.time()-t
@@ -73,7 +78,7 @@ class Session(requests.Session):
             tds = tr.find_all('td')
             ip = tds[0].text.strip()
             port = tds[1].text.strip()
-            if tds[6].text.strip()=='yes' and tds[4].text.strip() != "transparent" and (self.__country_codes is None or tds[2].text.strip() in self.__country_codes):
+            if (not self.__only_https or tds[6].text.strip()=='yes') and tds[4].text.strip() != "transparent" and (self.__country_codes is None or tds[2].text.strip() in self.__country_codes):
                 proxies_list.append({"https": ip+ ':'+ port, "http": ip+ ':'+ port})
         return proxies_list
 
@@ -86,7 +91,7 @@ class Session(requests.Session):
                 good_proxies.append((time_taken1, proxy))
                 if len(good_proxies) == self.__max_num_proxy*2:
                     return sorted(good_proxies)[:self.__max_num_proxy]
-        return sorted(good_proxies)
+        return sorted(good_proxies)[:self.__max_num_proxy]
 
 
     def __get_proxy(self, **kwargs):
